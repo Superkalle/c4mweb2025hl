@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Calendar, Tag, ArrowRight, Briefcase, User, Clock, AlertCircle, Users, Target, TrendingUp } from 'lucide-react';
+import { ExternalLink, Calendar, Tag, ArrowRight, User, Mail, Phone, Linkedin, MapPin, AlertCircle, Users, Award, Briefcase, GraduationCap } from 'lucide-react';
 
-interface WordPressPortfolio {
+interface WordPressBerater {
   id: number;
   title: {
     rendered: string;
@@ -22,19 +22,19 @@ interface WordPressPortfolio {
   featured_media: number;
   type?: string;
   acf?: {
-    project_url?: string;
-    client_name?: string;
-    project_type?: string;
-    technologies?: string;
-    completion_date?: string;
-    project_description?: string;
-    project_status?: string;
-    project_duration?: string;
-    team_size?: string;
-    industry?: string;
-    challenge?: string;
-    solution?: string;
-    results?: string;
+    berater_position?: string;
+    berater_email?: string;
+    berater_phone?: string;
+    berater_linkedin?: string;
+    berater_location?: string;
+    berater_specialties?: string;
+    berater_experience?: string;
+    berater_education?: string;
+    berater_certifications?: string;
+    berater_languages?: string;
+    berater_bio?: string;
+    berater_projects?: string;
+    berater_availability?: string;
   };
   _embedded?: {
     'wp:featuredmedia'?: Array<{
@@ -58,45 +58,49 @@ interface WordPressPortfolio {
 }
 
 export default function BeraterPortfolio() {
-  const [portfolioItems, setPortfolioItems] = useState<WordPressPortfolio[]>([]);
+  const [beraterTeam, setBeraterTeam] = useState<WordPressBerater[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSkill, setSelectedSkill] = useState<string>('all');
-  const [availableSkills, setAvailableSkills] = useState<string[]>([]);
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
+  const [availableSpecialties, setAvailableSpecialties] = useState<string[]>([]);
 
   useEffect(() => {
-    const fetchBeraterPortfolio = async () => {
+    const fetchBeraterTeam = async () => {
       setLoading(true);
       
       try {
-        // Verschiedene Endpoints für Berater-Portfolio versuchen
+        // Verschiedene Endpoints für Berater-Team versuchen
         const endpoints = [
-          // Portfolio mit Berater-Kategorie
-          'https://cockpit4me.de/wp-json/wp/v2/portfolio?_embed&per_page=50&portfolio_category=berater',
-          'https://cockpit4me.de/wp-json/wp/v2/portfolio?_embed&per_page=50&portfolio_category=beratung',
-          'https://cockpit4me.de/wp-json/wp/v2/portfolio?_embed&per_page=50&portfolio_category=consulting',
+          // Posts/Pages mit "berater" Tag
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&tags=berater',
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&tags=team',
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&tags=consultant',
+          
+          // Custom Post Type Team/Berater
+          'https://cockpit4me.de/wp-json/wp/v2/team?_embed&per_page=50',
+          'https://cockpit4me.de/wp-json/wp/v2/berater?_embed&per_page=50',
+          'https://cockpit4me.de/wp-json/wp/v2/consultants?_embed&per_page=50',
           
           // Posts mit Berater-Kategorie
           'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&categories=berater',
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&categories=beratung',
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&categories=consulting',
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&categories=team',
           
           // Suche nach Berater-relevanten Inhalten
           'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=berater',
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=beratung',
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=consulting',
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=consultant',
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=team',
           
-          // Alle Portfolio-Items als Fallback
-          'https://cockpit4me.de/wp-json/wp/v2/portfolio?_embed&per_page=50',
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&post_type=portfolio'
+          // Pages durchsuchen
+          'https://cockpit4me.de/wp-json/wp/v2/pages?_embed&per_page=50&search=berater',
+          'https://cockpit4me.de/wp-json/wp/v2/pages?_embed&per_page=50&search=team'
         ];
 
-        let beraterData: WordPressPortfolio[] = [];
+        let beraterData: WordPressBerater[] = [];
         let success = false;
 
         for (const endpoint of endpoints) {
           try {
-            console.log(`Versuche Berater-Portfolio von: ${endpoint}`);
+            console.log(`Versuche Berater-Team von: ${endpoint}`);
             
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -117,45 +121,50 @@ export default function BeraterPortfolio() {
               const data = await response.json();
               
               if (Array.isArray(data) && data.length > 0) {
-                // Filtere Berater-relevante Projekte
-                const filteredData = data.filter((item: WordPressPortfolio) => {
+                // Filtere Berater-relevante Posts
+                const filteredData = data.filter((item: WordPressBerater) => {
                   const title = item.title.rendered.toLowerCase();
                   const excerpt = item.excerpt.rendered.toLowerCase();
                   const content = item.content.rendered.toLowerCase();
                   
-                  // Prüfe auf Berater-relevante Keywords
-                  const beraterKeywords = [
-                    'berater', 'beratung', 'consulting', 'consultant',
-                    'strategie', 'strategy', 'leadership', 'führung',
-                    'transformation', 'change', 'management',
-                    'prozess', 'process', 'optimierung', 'optimization'
+                  // Prüfe auf Berater/Team-relevante Keywords
+                  const teamKeywords = [
+                    'berater', 'consultant', 'team', 'mitarbeiter',
+                    'experte', 'expert', 'spezialist', 'specialist',
+                    'senior', 'junior', 'partner', 'director',
+                    'manager', 'lead', 'principal'
                   ];
                   
-                  const hasKeyword = beraterKeywords.some(keyword => 
+                  const hasKeyword = teamKeywords.some(keyword => 
                     title.includes(keyword) || 
                     excerpt.includes(keyword) || 
                     content.includes(keyword)
                   );
                   
-                  // Prüfe Portfolio-Kategorien
-                  const categories = getCategories(item);
-                  const hasBeraterCategory = categories.some(cat => 
-                    ['berater', 'beratung', 'consulting', 'strategy', 'leadership'].includes(cat.slug)
+                  // Prüfe Tags
+                  const tags = getTags(item);
+                  const hasBeraterTag = tags.some(tag => 
+                    ['berater', 'team', 'consultant', 'experte', 'mitarbeiter'].includes(tag.slug)
                   );
                   
-                  // Prüfe ACF-Felder
-                  const hasRelevantACF = item.acf?.project_type && 
-                    ['beratung', 'consulting', 'strategy', 'leadership', 'transformation'].some(type =>
-                      item.acf!.project_type!.toLowerCase().includes(type)
-                    );
+                  // Prüfe Kategorien
+                  const categories = getCategories(item);
+                  const hasBeraterCategory = categories.some(cat => 
+                    ['berater', 'team', 'consultant', 'mitarbeiter'].includes(cat.slug)
+                  );
                   
-                  return hasKeyword || hasBeraterCategory || hasRelevantACF;
+                  // Prüfe ACF-Felder für Berater-Daten
+                  const hasTeamACF = item.acf?.berater_position || 
+                                   item.acf?.berater_email || 
+                                   item.acf?.berater_specialties;
+                  
+                  return hasKeyword || hasBeraterTag || hasBeraterCategory || hasTeamACF;
                 });
 
                 if (filteredData.length > 0) {
                   beraterData = filteredData;
                   success = true;
-                  console.log(`✅ Berater-Portfolio geladen: ${filteredData.length} Projekte`);
+                  console.log(`✅ Berater-Team geladen: ${filteredData.length} Berater`);
                   break;
                 }
               }
@@ -167,42 +176,51 @@ export default function BeraterPortfolio() {
         }
 
         if (success && beraterData.length > 0) {
-          setPortfolioItems(beraterData);
+          setBeraterTeam(beraterData);
           
-          // Extrahiere verfügbare Skills
-          const skills = new Set<string>();
-          beraterData.forEach(item => {
-            const portfolioSkills = getSkills(item);
-            portfolioSkills.forEach(skill => skills.add(skill));
+          // Extrahiere verfügbare Spezialisierungen
+          const specialties = new Set<string>();
+          beraterData.forEach(berater => {
+            if (berater.acf?.berater_specialties) {
+              berater.acf.berater_specialties.split(',').forEach(specialty => {
+                specialties.add(specialty.trim());
+              });
+            }
+            // Fallback: Kategorien als Spezialisierungen
+            const categories = getCategories(berater);
+            categories.forEach(cat => {
+              if (!['berater', 'team', 'uncategorized'].includes(cat.slug)) {
+                specialties.add(cat.name);
+              }
+            });
           });
-          setAvailableSkills(['all', ...Array.from(skills)]);
+          setAvailableSpecialties(['all', ...Array.from(specialties)]);
           
           setError(null);
         } else {
-          throw new Error('Keine Berater-Portfolio-Daten gefunden');
+          throw new Error('Keine Berater-Team-Daten gefunden');
         }
 
       } catch (err) {
-        console.error('❌ Berater-Portfolio-Laden fehlgeschlagen:', err);
-        setError(err instanceof Error ? err.message : 'Fehler beim Laden der Berater-Portfolio-Daten');
-        setPortfolioItems([]);
+        console.error('❌ Berater-Team-Laden fehlgeschlagen:', err);
+        setError(err instanceof Error ? err.message : 'Fehler beim Laden der Berater-Team-Daten');
+        setBeraterTeam([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchBeraterPortfolio();
+    fetchBeraterTeam();
   }, []);
 
-  const getCategories = (item: WordPressPortfolio) => {
+  const getCategories = (item: WordPressBerater) => {
     try {
       if (!item._embedded?.['wp:term']) return [];
       const terms = item._embedded['wp:term'];
       for (const termGroup of terms) {
         if (Array.isArray(termGroup)) {
           const categories = termGroup.filter(term => 
-            term.taxonomy === 'category' || 
-            term.taxonomy === 'portfolio_category'
+            term.taxonomy === 'category'
           );
           if (categories.length > 0) return categories;
         }
@@ -213,34 +231,14 @@ export default function BeraterPortfolio() {
     }
   };
 
-  const getSkills = (item: WordPressPortfolio) => {
-    try {
-      if (!item._embedded?.['wp:term']) return [];
-      const terms = item._embedded['wp:term'];
-      for (const termGroup of terms) {
-        if (Array.isArray(termGroup)) {
-          const skills = termGroup.filter(term => 
-            term.taxonomy === 'portfolio_skill' || 
-            term.taxonomy === 'skill'
-          );
-          if (skills.length > 0) return skills.map(skill => skill.name);
-        }
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  };
-
-  const getTags = (item: WordPressPortfolio) => {
+  const getTags = (item: WordPressBerater) => {
     try {
       if (!item._embedded?.['wp:term']) return [];
       const terms = item._embedded['wp:term'];
       for (const termGroup of terms) {
         if (Array.isArray(termGroup)) {
           const tags = termGroup.filter(term => 
-            term.taxonomy === 'post_tag' || 
-            term.taxonomy === 'portfolio_tag'
+            term.taxonomy === 'post_tag'
           );
           if (tags.length > 0) return tags;
         }
@@ -251,7 +249,7 @@ export default function BeraterPortfolio() {
     }
   };
 
-  const getFeaturedImage = (item: WordPressPortfolio) => {
+  const getFeaturedImage = (item: WordPressBerater) => {
     try {
       const media = item._embedded?.['wp:featuredmedia']?.[0];
       if (!media) return null;
@@ -290,8 +288,8 @@ export default function BeraterPortfolio() {
     }
   };
 
-  const getProjectTypeColor = (type: string) => {
-    const normalizedType = type.toLowerCase();
+  const getSpecialtyColor = (specialty: string) => {
+    const normalizedSpecialty = specialty.toLowerCase();
     const colors: Record<string, string> = {
       'strategieberatung': 'bg-cockpit-violet/10 text-cockpit-violet border-cockpit-violet/20',
       'strategy': 'bg-cockpit-violet/10 text-cockpit-violet border-cockpit-violet/20',
@@ -299,23 +297,27 @@ export default function BeraterPortfolio() {
       'führung': 'bg-cockpit-blue-light/10 text-cockpit-blue-light border-cockpit-blue-light/20',
       'transformation': 'bg-cockpit-pink/10 text-cockpit-pink border-cockpit-pink/20',
       'change': 'bg-cockpit-pink/10 text-cockpit-pink border-cockpit-pink/20',
-      'prozessoptimierung': 'bg-cockpit-turquoise/10 text-cockpit-turquoise border-cockpit-turquoise/20',
+      'prozess': 'bg-cockpit-turquoise/10 text-cockpit-turquoise border-cockpit-turquoise/20',
       'process': 'bg-cockpit-turquoise/10 text-cockpit-turquoise border-cockpit-turquoise/20',
-      'beratung': 'bg-cockpit-lime/10 text-cockpit-teal border-cockpit-lime/20',
-      'consulting': 'bg-cockpit-lime/10 text-cockpit-teal border-cockpit-lime/20'
+      'digital': 'bg-cockpit-lime/10 text-cockpit-teal border-cockpit-lime/20',
+      'innovation': 'bg-cockpit-orange/10 text-orange-600 border-cockpit-orange/20'
     };
     
     for (const [key, value] of Object.entries(colors)) {
-      if (normalizedType.includes(key)) return value;
+      if (normalizedSpecialty.includes(key)) return value;
     }
     
     return 'bg-gray-100 text-gray-600 border-gray-200';
   };
 
-  // Filter Portfolio-Items basierend auf ausgewähltem Skill
-  const filteredItems = selectedSkill === 'all' 
-    ? portfolioItems 
-    : portfolioItems.filter(item => getSkills(item).includes(selectedSkill));
+  // Filter Berater basierend auf ausgewählter Spezialisierung
+  const filteredBerater = selectedSpecialty === 'all' 
+    ? beraterTeam 
+    : beraterTeam.filter(berater => {
+        const specialties = berater.acf?.berater_specialties?.split(',').map(s => s.trim()) || [];
+        const categories = getCategories(berater).map(cat => cat.name);
+        return [...specialties, ...categories].includes(selectedSpecialty);
+      });
 
   // Loading State
   if (loading) {
@@ -326,24 +328,24 @@ export default function BeraterPortfolio() {
           <div className="text-center mb-16">
             <div className="inline-flex items-center space-x-2 bg-cockpit-violet/10 rounded-full px-4 py-2 mb-6">
               <Users className="w-4 h-4 text-cockpit-violet" />
-              <span className="text-sm font-medium text-cockpit-violet">Berater Portfolio</span>
+              <span className="text-sm font-medium text-cockpit-violet">Unser Team</span>
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
               Unsere{' '}
               <span className="bg-gradient-to-r from-cockpit-violet to-cockpit-blue-light bg-clip-text text-transparent">
-                Beratungsprojekte
+                Berater
               </span>
             </h1>
             
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Entdecken Sie unsere erfolgreichen Strategieberatungs- und Leadership-Projekte. 
-              Von der Analyse bis zur Umsetzung - hier sehen Sie, wie wir Unternehmen transformieren.
+              Lernen Sie unser erfahrenes Team von Strategieberatern und Leadership-Experten kennen. 
+              Gemeinsam bringen wir Ihr Unternehmen auf die nächste Stufe.
             </p>
             
             <div className="flex items-center justify-center space-x-2 text-cockpit-violet">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-cockpit-violet"></div>
-              <span className="text-sm">Lade Berater-Portfolio von WordPress...</span>
+              <span className="text-sm">Lade Berater-Team von WordPress...</span>
             </div>
           </div>
 
@@ -371,7 +373,7 @@ export default function BeraterPortfolio() {
   }
 
   // Error State
-  if (error || portfolioItems.length === 0) {
+  if (error || beraterTeam.length === 0) {
     return (
       <section className="py-20 sm:py-32 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -379,13 +381,13 @@ export default function BeraterPortfolio() {
           <div className="text-center mb-16">
             <div className="inline-flex items-center space-x-2 bg-cockpit-violet/10 rounded-full px-4 py-2 mb-6">
               <Users className="w-4 h-4 text-cockpit-violet" />
-              <span className="text-sm font-medium text-cockpit-violet">Berater Portfolio</span>
+              <span className="text-sm font-medium text-cockpit-violet">Unser Team</span>
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
               Unsere{' '}
               <span className="bg-gradient-to-r from-cockpit-violet to-cockpit-blue-light bg-clip-text text-transparent">
-                Beratungsprojekte
+                Berater
               </span>
             </h1>
             
@@ -393,11 +395,11 @@ export default function BeraterPortfolio() {
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-8 mb-8">
                 <div className="flex items-center space-x-3 mb-4">
                   <AlertCircle className="w-6 h-6 text-amber-600" />
-                  <h3 className="text-xl font-semibold text-amber-800">Portfolio wird aufgebaut</h3>
+                  <h3 className="text-xl font-semibold text-amber-800">Team-Seite wird aufgebaut</h3>
                 </div>
                 <p className="text-amber-700 mb-6 leading-relaxed">
-                  Unser Berater-Portfolio wird gerade in WordPress eingerichtet. 
-                  Besuchen Sie unsere Hauptwebsite für aktuelle Referenzen und Fallstudien.
+                  Unsere Berater-Profile werden gerade in WordPress eingerichtet. 
+                  Besuchen Sie unsere Hauptwebsite für Informationen über unser Team.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button 
@@ -405,12 +407,12 @@ export default function BeraterPortfolio() {
                     className="bg-cockpit-gradient hover:opacity-90 text-white"
                   >
                     <a 
-                      href="https://cockpit4me.de/portfolio" 
+                      href="https://cockpit4me.de/team" 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="inline-flex items-center space-x-2"
                     >
-                      <span>Portfolio ansehen</span>
+                      <span>Team kennenlernen</span>
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   </Button>
@@ -425,7 +427,7 @@ export default function BeraterPortfolio() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center space-x-2"
                     >
-                      <span>Beratung anfragen</span>
+                      <span>Kontakt aufnehmen</span>
                       <ArrowRight className="w-4 h-4" />
                     </a>
                   </Button>
@@ -446,64 +448,64 @@ export default function BeraterPortfolio() {
         <div className="text-center mb-16">
           <div className="inline-flex items-center space-x-2 bg-cockpit-violet/10 rounded-full px-4 py-2 mb-6">
             <Users className="w-4 h-4 text-cockpit-violet" />
-            <span className="text-sm font-medium text-cockpit-violet">Berater Portfolio</span>
+            <span className="text-sm font-medium text-cockpit-violet">Unser Team</span>
           </div>
           
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
             Unsere{' '}
             <span className="bg-gradient-to-r from-cockpit-violet to-cockpit-blue-light bg-clip-text text-transparent">
-              Beratungsprojekte
+              Berater
             </span>
           </h1>
           
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Entdecken Sie unsere erfolgreichen Strategieberatungs- und Leadership-Projekte. 
-            Von der Analyse bis zur Umsetzung - hier sehen Sie, wie wir Unternehmen transformieren.
+            Lernen Sie unser erfahrenes Team von Strategieberatern und Leadership-Experten kennen. 
+            Gemeinsam bringen wir Ihr Unternehmen auf die nächste Stufe.
           </p>
           
           {/* Connection Status */}
           <div className="flex items-center justify-center space-x-2 mb-8">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span className="text-sm text-green-600 font-medium">
-              Live-Daten von WordPress ({portfolioItems.length} Beratungsprojekte)
+              Live-Daten von WordPress ({beraterTeam.length} Berater)
             </span>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto">
             <div className="text-center">
-              <div className="text-3xl font-bold text-cockpit-violet mb-2">{portfolioItems.length}+</div>
-              <div className="text-gray-600">Beratungsprojekte</div>
+              <div className="text-3xl font-bold text-cockpit-violet mb-2">{beraterTeam.length}+</div>
+              <div className="text-gray-600">Experten</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-cockpit-blue-light mb-2">{availableSkills.length - 1}+</div>
-              <div className="text-gray-600">Beratungsfelder</div>
+              <div className="text-3xl font-bold text-cockpit-blue-light mb-2">{availableSpecialties.length - 1}+</div>
+              <div className="text-gray-600">Spezialisierungen</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-cockpit-turquoise mb-2">100%</div>
-              <div className="text-gray-600">Erfolgsquote</div>
+              <div className="text-3xl font-bold text-cockpit-turquoise mb-2">15+</div>
+              <div className="text-gray-600">Jahre Erfahrung</div>
             </div>
           </div>
         </div>
 
-        {/* Skill Filter */}
-        {availableSkills.length > 1 && (
+        {/* Specialty Filter */}
+        {availableSpecialties.length > 1 && (
           <div className="mb-12">
             <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Nach Beratungsfeld filtern:</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Nach Spezialisierung filtern:</h3>
               <div className="flex flex-wrap justify-center gap-2">
-                {availableSkills.map((skill) => (
+                {availableSpecialties.map((specialty) => (
                   <Button
-                    key={skill}
-                    variant={selectedSkill === skill ? "default" : "outline"}
+                    key={specialty}
+                    variant={selectedSpecialty === specialty ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setSelectedSkill(skill)}
-                    className={selectedSkill === skill 
+                    onClick={() => setSelectedSpecialty(specialty)}
+                    className={selectedSpecialty === specialty 
                       ? "bg-cockpit-violet text-white" 
                       : "border-cockpit-violet text-cockpit-violet hover:bg-cockpit-violet hover:text-white"
                     }
                   >
-                    {skill === 'all' ? 'Alle Projekte' : skill}
+                    {specialty === 'all' ? 'Alle Berater' : specialty}
                   </Button>
                 ))}
               </div>
@@ -511,23 +513,23 @@ export default function BeraterPortfolio() {
           </div>
         )}
 
-        {/* Portfolio Grid */}
+        {/* Berater Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          {filteredItems.map((item) => {
-            const tags = getTags(item);
-            const skills = getSkills(item);
-            const categories = getCategories(item);
-            const featuredImage = getFeaturedImage(item);
-            const projectType = item.acf?.project_type || categories[0]?.name || 'Beratungsprojekt';
+          {filteredBerater.map((berater) => {
+            const tags = getTags(berater);
+            const categories = getCategories(berater);
+            const featuredImage = getFeaturedImage(berater);
+            const position = berater.acf?.berater_position || 'Senior Berater';
+            const specialties = berater.acf?.berater_specialties?.split(',').map(s => s.trim()) || [];
 
             return (
-              <Card key={item.id} className="group hover:shadow-xl transition-all duration-300 border-0 bg-white hover:bg-gray-50/50 overflow-hidden">
-                {/* Featured Image */}
+              <Card key={berater.id} className="group hover:shadow-xl transition-all duration-300 border-0 bg-white hover:bg-gray-50/50 overflow-hidden">
+                {/* Profile Image */}
                 <div className="relative h-64 overflow-hidden bg-gradient-to-br from-cockpit-violet/10 to-cockpit-blue-light/10">
                   {featuredImage ? (
                     <img
                       src={featuredImage}
-                      alt={stripHtml(item.title.rendered)}
+                      alt={stripHtml(berater.title.rendered)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       loading="lazy"
                       onError={(e) => {
@@ -538,8 +540,8 @@ export default function BeraterPortfolio() {
                           parent.innerHTML = `
                             <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-cockpit-violet/20 to-cockpit-blue-light/20">
                               <div class="text-center">
-                                <div class="w-16 h-16 mx-auto mb-4 bg-cockpit-violet/20 rounded-2xl flex items-center justify-center">
-                                  <span class="text-2xl font-bold text-cockpit-violet/60">${stripHtml(item.title.rendered).charAt(0)}</span>
+                                <div class="w-20 h-20 mx-auto mb-4 bg-cockpit-violet/20 rounded-full flex items-center justify-center">
+                                  <span class="text-3xl font-bold text-cockpit-violet/60">${stripHtml(berater.title.rendered).charAt(0)}</span>
                                 </div>
                               </div>
                             </div>
@@ -550,106 +552,98 @@ export default function BeraterPortfolio() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cockpit-violet/20 to-cockpit-blue-light/20">
                       <div className="text-center">
-                        <Target className="w-16 h-16 text-cockpit-violet/60 mx-auto mb-4" />
-                        <div className="text-2xl font-bold text-cockpit-violet/40">
-                          {stripHtml(item.title.rendered).charAt(0)}
+                        <User className="w-20 h-20 text-cockpit-violet/60 mx-auto mb-4" />
+                        <div className="text-3xl font-bold text-cockpit-violet/40">
+                          {stripHtml(berater.title.rendered).charAt(0)}
                         </div>
                       </div>
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
                   
-                  {/* Project Type Badge */}
+                  {/* Position Badge */}
                   <div className="absolute top-4 left-4">
-                    <Badge className={`${getProjectTypeColor(projectType)} border`}>
-                      {projectType}
+                    <Badge className="bg-white/90 text-gray-800 border-0">
+                      {position}
                     </Badge>
                   </div>
                 </div>
 
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-semibold text-gray-900 line-clamp-2 group-hover:text-cockpit-violet transition-colors">
-                    {stripHtml(item.title.rendered)}
+                  <CardTitle className="text-xl font-semibold text-gray-900 group-hover:text-cockpit-violet transition-colors">
+                    {stripHtml(berater.title.rendered)}
                   </CardTitle>
 
-                  {/* Client & Date */}
-                  <div className="flex items-center justify-between text-sm text-gray-500 mt-2">
-                    {item.acf?.client_name && (
-                      <div className="flex items-center space-x-1">
-                        <User className="w-4 h-4" />
-                        <span className="font-medium">{item.acf.client_name}</span>
+                  {/* Contact Info */}
+                  <div className="space-y-1 text-sm text-gray-500">
+                    {berater.acf?.berater_email && (
+                      <div className="flex items-center space-x-2">
+                        <Mail className="w-4 h-4" />
+                        <span>{berater.acf.berater_email}</span>
                       </div>
                     )}
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>{formatDate(item.date)}</span>
-                    </div>
+                    {berater.acf?.berater_location && (
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="w-4 h-4" />
+                        <span>{berater.acf.berater_location}</span>
+                      </div>
+                    )}
                   </div>
                 </CardHeader>
 
                 <CardContent className="pt-0">
                   <CardDescription className="text-gray-600 leading-relaxed line-clamp-3 mb-4">
-                    {stripHtml(item.excerpt.rendered) || stripHtml(item.content.rendered).substring(0, 150) + '...'}
+                    {berater.acf?.berater_bio || stripHtml(berater.excerpt.rendered) || stripHtml(berater.content.rendered).substring(0, 150) + '...'}
                   </CardDescription>
 
-                  {/* Project Details */}
+                  {/* Experience & Education */}
                   <div className="space-y-2 mb-4 text-sm">
-                    {item.acf?.industry && (
+                    {berater.acf?.berater_experience && (
                       <div className="flex items-center space-x-2 text-gray-600">
-                        <TrendingUp className="w-4 h-4" />
-                        <span>Branche: {item.acf.industry}</span>
+                        <Briefcase className="w-4 h-4" />
+                        <span>{berater.acf.berater_experience}</span>
                       </div>
                     )}
-                    {item.acf?.project_duration && (
+                    {berater.acf?.berater_education && (
                       <div className="flex items-center space-x-2 text-gray-600">
-                        <Clock className="w-4 h-4" />
-                        <span>Dauer: {item.acf.project_duration}</span>
+                        <GraduationCap className="w-4 h-4" />
+                        <span>{berater.acf.berater_education}</span>
                       </div>
                     )}
-                    {item.acf?.team_size && (
+                    {berater.acf?.berater_certifications && (
                       <div className="flex items-center space-x-2 text-gray-600">
-                        <Users className="w-4 h-4" />
-                        <span>Team: {item.acf.team_size}</span>
+                        <Award className="w-4 h-4" />
+                        <span>{berater.acf.berater_certifications}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Skills */}
-                  {skills.length > 0 && (
+                  {/* Specialties */}
+                  {specialties.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-4">
-                      {skills.slice(0, 3).map((skill, index) => (
+                      {specialties.slice(0, 3).map((specialty, index) => (
                         <Badge 
                           key={index} 
-                          variant="outline" 
-                          className="text-xs border-cockpit-violet/30 text-cockpit-violet bg-cockpit-violet/5"
+                          className={`text-xs border ${getSpecialtyColor(specialty)}`}
                         >
-                          {skill}
+                          {specialty}
                         </Badge>
                       ))}
-                      {skills.length > 3 && (
+                      {specialties.length > 3 && (
                         <Badge 
                           variant="outline" 
                           className="text-xs border-gray-300 text-gray-500 bg-gray-50"
                         >
-                          +{skills.length - 3}
+                          +{specialties.length - 3}
                         </Badge>
                       )}
                     </div>
                   )}
 
-                  {/* Tags */}
-                  {tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {tags.slice(0, 2).map((tag) => (
-                        <Badge 
-                          key={tag.id} 
-                          variant="secondary" 
-                          className="bg-cockpit-blue-light/10 text-cockpit-blue-light text-xs"
-                        >
-                          <Tag className="w-3 h-3 mr-1" />
-                          {tag.name}
-                        </Badge>
-                      ))}
+                  {/* Languages */}
+                  {berater.acf?.berater_languages && (
+                    <div className="text-xs text-gray-500 mb-4">
+                      <strong>Sprachen:</strong> {berater.acf.berater_languages}
                     </div>
                   )}
 
@@ -660,18 +654,18 @@ export default function BeraterPortfolio() {
                       className="p-0 h-auto text-cockpit-violet hover:text-cockpit-blue-light font-semibold group/btn"
                     >
                       <a 
-                        href={item.link} 
+                        href={berater.link} 
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center space-x-2"
                       >
-                        <span>Fallstudie lesen</span>
+                        <span>Profil ansehen</span>
                         <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                       </a>
                     </Button>
 
-                    {/* Project URL */}
-                    {item.acf?.project_url && (
+                    {/* LinkedIn */}
+                    {berater.acf?.berater_linkedin && (
                       <Button 
                         asChild
                         size="sm"
@@ -679,13 +673,13 @@ export default function BeraterPortfolio() {
                         className="border-cockpit-violet text-cockpit-violet hover:bg-cockpit-violet hover:text-white"
                       >
                         <a 
-                          href={item.acf.project_url} 
+                          href={berater.acf.berater_linkedin} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="flex items-center space-x-1"
                         >
-                          <ExternalLink className="w-3 h-3" />
-                          <span>Live</span>
+                          <Linkedin className="w-3 h-3" />
+                          <span>LinkedIn</span>
                         </a>
                       </Button>
                     )}
@@ -700,11 +694,11 @@ export default function BeraterPortfolio() {
         <div className="text-center">
           <div className="bg-gradient-to-r from-cockpit-violet/5 to-cockpit-blue-light/5 rounded-2xl p-8 sm:p-12 border border-cockpit-violet/10">
             <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
-              Ihr Beratungsprojekt mit uns starten?
+              Bereit für Ihr nächstes Projekt?
             </h3>
             <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-              Lassen Sie uns gemeinsam Ihre strategischen Herausforderungen analysieren 
-              und maßgeschneiderte Lösungen entwickeln. Kontaktieren Sie uns für eine 
+              Unser erfahrenes Berater-Team steht bereit, um Ihre strategischen 
+              Herausforderungen zu lösen. Kontaktieren Sie uns für eine 
               unverbindliche Erstberatung.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
