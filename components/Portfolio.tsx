@@ -41,12 +41,12 @@ interface WordPressPortfolio {
   };
 }
 
-// Fallback Portfolio Data für Demo-Zwecke
+// Fallback Portfolio Data mit echten Pexels-Bildern
 const fallbackPortfolio: WordPressPortfolio[] = [
   {
     id: 1,
     title: { rendered: 'KI-gestützte Strategieberatung für Fintech-Startup' },
-    excerpt: { rendered: 'Entwicklung einer umfassenden Digitalisierungsstrategie mit KI-Integration für ein aufstrebendes Fintech-Unternehmen.' },
+    excerpt: { rendered: 'Entwicklung einer umfassenden Digitalisierungsstrategie mit KI-Integration für ein aufstrebendes Fintech-Unternehmen. Implementierung von Machine Learning-Algorithmen zur Risikobewertung und Automatisierung von Geschäftsprozessen.' },
     content: { rendered: '' },
     date: '2024-01-15',
     link: '#',
@@ -57,12 +57,18 @@ const fallbackPortfolio: WordPressPortfolio[] = [
       project_type: 'Strategieberatung',
       technologies: 'Machine Learning, Python, React, AWS',
       completion_date: '2024-01-15'
+    },
+    _embedded: {
+      'wp:featuredmedia': [{
+        source_url: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800',
+        alt_text: 'Fintech Strategy Meeting'
+      }]
     }
   },
   {
     id: 2,
     title: { rendered: 'Leadership Development Programm für Tech-Konzern' },
-    excerpt: { rendered: 'Maßgeschneidertes Führungskräfte-Entwicklungsprogramm mit Fokus auf digitale Transformation und agile Methoden.' },
+    excerpt: { rendered: 'Maßgeschneidertes Führungskräfte-Entwicklungsprogramm mit Fokus auf digitale Transformation und agile Methoden. Training von 50+ Führungskräften in modernen Leadership-Techniken.' },
     content: { rendered: '' },
     date: '2023-12-10',
     link: '#',
@@ -73,12 +79,18 @@ const fallbackPortfolio: WordPressPortfolio[] = [
       project_type: 'Leadership Development',
       technologies: 'Coaching, Workshops, Digital Tools',
       completion_date: '2023-12-10'
+    },
+    _embedded: {
+      'wp:featuredmedia': [{
+        source_url: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=800',
+        alt_text: 'Leadership Workshop'
+      }]
     }
   },
   {
     id: 3,
     title: { rendered: 'Prozessoptimierung durch KI-Automatisierung' },
-    excerpt: { rendered: 'Implementierung intelligenter Automatisierungslösungen zur Steigerung der Effizienz in der Produktion.' },
+    excerpt: { rendered: 'Implementierung intelligenter Automatisierungslösungen zur Steigerung der Effizienz in der Produktion. 40% Reduktion der Bearbeitungszeit durch RPA und Machine Learning.' },
     content: { rendered: '' },
     date: '2023-11-20',
     link: '#',
@@ -89,12 +101,18 @@ const fallbackPortfolio: WordPressPortfolio[] = [
       project_type: 'Process Optimization',
       technologies: 'RPA, AI/ML, IoT, Dashboard',
       completion_date: '2023-11-20'
+    },
+    _embedded: {
+      'wp:featuredmedia': [{
+        source_url: 'https://images.pexels.com/photos/3862132/pexels-photo-3862132.jpeg?auto=compress&cs=tinysrgb&w=800',
+        alt_text: 'Industrial Automation'
+      }]
     }
   },
   {
     id: 4,
     title: { rendered: 'Digital Transformation Roadmap für Mittelstand' },
-    excerpt: { rendered: 'Entwicklung einer 3-Jahres-Roadmap für die digitale Transformation eines traditionellen Mittelstandsunternehmens.' },
+    excerpt: { rendered: 'Entwicklung einer 3-Jahres-Roadmap für die digitale Transformation eines traditionellen Mittelstandsunternehmens. Cloud-Migration und Digitalisierung aller Geschäftsprozesse.' },
     content: { rendered: '' },
     date: '2023-10-05',
     link: '#',
@@ -105,12 +123,18 @@ const fallbackPortfolio: WordPressPortfolio[] = [
       project_type: 'Digital Transformation',
       technologies: 'Cloud Migration, ERP, CRM, Analytics',
       completion_date: '2023-10-05'
+    },
+    _embedded: {
+      'wp:featuredmedia': [{
+        source_url: 'https://images.pexels.com/photos/3184360/pexels-photo-3184360.jpeg?auto=compress&cs=tinysrgb&w=800',
+        alt_text: 'Digital Transformation Planning'
+      }]
     }
   },
   {
     id: 5,
     title: { rendered: 'KI-basierte Marktanalyse für E-Commerce' },
-    excerpt: { rendered: 'Implementierung fortschrittlicher KI-Algorithmen zur Marktanalyse und Kundenverhalten-Vorhersage.' },
+    excerpt: { rendered: 'Implementierung fortschrittlicher KI-Algorithmen zur Marktanalyse und Kundenverhalten-Vorhersage. 25% Steigerung der Conversion-Rate durch personalisierte Empfehlungen.' },
     content: { rendered: '' },
     date: '2023-09-15',
     link: '#',
@@ -121,12 +145,18 @@ const fallbackPortfolio: WordPressPortfolio[] = [
       project_type: 'Market Analysis',
       technologies: 'TensorFlow, BigQuery, Tableau, API',
       completion_date: '2023-09-15'
+    },
+    _embedded: {
+      'wp:featuredmedia': [{
+        source_url: 'https://images.pexels.com/photos/3184339/pexels-photo-3184339.jpeg?auto=compress&cs=tinysrgb&w=800',
+        alt_text: 'E-Commerce Analytics Dashboard'
+      }]
     }
   },
   {
     id: 6,
     title: { rendered: 'Agile Transformation für Softwareunternehmen' },
-    excerpt: { rendered: 'Begleitung bei der Umstellung auf agile Arbeitsweisen und Implementierung von Scrum-Prozessen.' },
+    excerpt: { rendered: 'Begleitung bei der Umstellung auf agile Arbeitsweisen und Implementierung von Scrum-Prozessen. Schulung von 8 Teams und Einführung moderner Development-Practices.' },
     content: { rendered: '' },
     date: '2023-08-30',
     link: '#',
@@ -137,6 +167,12 @@ const fallbackPortfolio: WordPressPortfolio[] = [
       project_type: 'Agile Transformation',
       technologies: 'Scrum, Kanban, Jira, Confluence',
       completion_date: '2023-08-30'
+    },
+    _embedded: {
+      'wp:featuredmedia': [{
+        source_url: 'https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=800',
+        alt_text: 'Agile Team Meeting'
+      }]
     }
   }
 ];
@@ -162,7 +198,19 @@ export default function Portfolio() {
 
         for (const endpoint of endpoints) {
           try {
-            const response = await fetch(endpoint);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+            const response = await fetch(endpoint, {
+              signal: controller.signal,
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+              }
+            });
+
+            clearTimeout(timeoutId);
+
             if (response.ok) {
               const data = await response.json();
               if (Array.isArray(data) && data.length > 0) {
@@ -309,6 +357,24 @@ export default function Portfolio() {
                       src={featuredImage}
                       alt={stripHtml(item.title.rendered)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                      onError={(e) => {
+                        // Fallback wenn Bild nicht lädt
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `
+                            <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-cockpit-turquoise/20 to-cockpit-lime/20">
+                              <div class="text-center">
+                                <div class="w-16 h-16 mx-auto mb-4 bg-cockpit-turquoise/20 rounded-2xl flex items-center justify-center">
+                                  <span class="text-2xl font-bold text-cockpit-turquoise/60">${stripHtml(item.title.rendered).charAt(0)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          `;
+                        }
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cockpit-turquoise/20 to-cockpit-lime/20">
