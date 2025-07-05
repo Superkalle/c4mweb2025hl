@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Calendar, Tag, ArrowRight, Briefcase, User, Clock, AlertCircle } from 'lucide-react';
+import { ExternalLink, Calendar, Tag, ArrowRight, Briefcase, User, Clock, AlertCircle, Filter } from 'lucide-react';
+import Link from 'next/link';
 
 interface WordPressPortfolio {
   id: number;
@@ -36,12 +37,8 @@ interface WordPressPortfolio {
       alt_text: string;
       media_details?: {
         sizes?: {
-          medium?: {
-            source_url: string;
-          };
-          large?: {
-            source_url: string;
-          };
+          medium?: { source_url: string; };
+          large?: { source_url: string; };
         };
       };
     }>;
@@ -58,12 +55,12 @@ export default function Portfolio() {
   const [portfolioItems, setPortfolioItems] = useState<WordPressPortfolio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'fallback'>('connecting');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchPortfolio = async () => {
       setLoading(true);
-      setConnectionStatus('connecting');
 
       try {
         // Erweiterte Liste von möglichen WordPress-Endpoints
@@ -94,7 +91,7 @@ export default function Portfolio() {
             console.log(`Versuche Portfolio-Daten von: ${endpoint}`);
             
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 Sekunden Timeout
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
 
             const response = await fetch(endpoint, {
               signal: controller.signal,
@@ -109,16 +106,12 @@ export default function Portfolio() {
 
             clearTimeout(timeoutId);
 
-            console.log(`Response Status: ${response.status} für ${endpoint}`);
-
             if (response.ok) {
               const data = await response.json();
-              console.log(`Erhaltene Daten:`, data);
 
               if (Array.isArray(data) && data.length > 0) {
                 // Filtere Portfolio-relevante Posts
                 const filteredData = data.filter((item: WordPressPortfolio) => {
-                  // Prüfe verschiedene Kriterien für Portfolio-Posts
                   const isPortfolioType = item.type === 'portfolio';
                   const hasPortfolioACF = item.acf?.project_url || item.acf?.client_name || item.acf?.project_type;
                   const hasPortfolioContent = item.title.rendered.toLowerCase().includes('projekt') ||
@@ -132,7 +125,6 @@ export default function Portfolio() {
                 if (filteredData.length > 0) {
                   portfolioData = filteredData;
                   success = true;
-                  setConnectionStatus('connected');
                   console.log(`✅ Portfolio-Daten erfolgreich geladen: ${filteredData.length} Projekte`);
                   break;
                 } else if (data.length > 0) {
@@ -146,24 +138,30 @@ export default function Portfolio() {
                     }
                   }));
                   success = true;
-                  setConnectionStatus('connected');
                   console.log(`✅ Allgemeine Posts als Portfolio verwendet: ${portfolioData.length} Einträge`);
                   break;
                 }
               }
             } else {
               lastError = `HTTP ${response.status}: ${response.statusText}`;
-              console.log(`❌ Endpoint fehlgeschlagen: ${lastError}`);
             }
           } catch (endpointError) {
             lastError = endpointError instanceof Error ? endpointError.message : 'Unbekannter Fehler';
-            console.log(`❌ Endpoint-Fehler für ${endpoint}:`, lastError);
             continue;
           }
         }
 
         if (success && portfolioData.length > 0) {
           setPortfolioItems(portfolioData);
+          
+          // Extrahiere verfügbare Kategorien
+          const categories = new Set<string>();
+          portfolioData.forEach(item => {
+            const itemCategories = getCategories(item);
+            itemCategories.forEach(cat => categories.add(cat.name));
+          });
+          setAvailableCategories(['all', ...Array.from(categories)]);
+          
           setError(null);
         } else {
           throw new Error(`Keine Portfolio-Daten gefunden. Letzter Fehler: ${lastError}`);
@@ -172,9 +170,6 @@ export default function Portfolio() {
       } catch (err) {
         console.error('❌ Portfolio-Laden fehlgeschlagen:', err);
         setError(err instanceof Error ? err.message : 'Unbekannter Fehler beim Laden der Portfolio-Daten');
-        setConnectionStatus('fallback');
-        
-        // Zeige leere Sektion statt Fallback-Daten
         setPortfolioItems([]);
       } finally {
         setLoading(false);
@@ -184,15 +179,56 @@ export default function Portfolio() {
     fetchPortfolio();
   }, []);
 
-  const formatDate = (dateString: string) => {
+  const getCategories = (item: WordPressPortfolio) => {
     try {
-      return new Date(dateString).toLocaleDateString('de-DE', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      if (!item._embedded?.['wp:term']) return [];
+      const terms = item._embedded['wp:term'];
+      for (const termGroup of terms) {
+        if (Array.isArray(termGroup)) {
+          const categories = termGroup.filter(term => 
+            term.taxonomy === 'category' || 
+            term.taxonomy === 'portfolio_category'
+          );
+          if (categories.length > 0) return categories;
+        }
+      }
+      return [];
     } catch {
-      return 'Datum unbekannt';
+      return [];
+    }
+  };
+
+  const getTags = (item: WordPressPortfolio) => {
+    try {
+      if (!item._embedded?.['wp:term']) return [];
+      const terms = item._embedded['wp:term'];
+      for (const termGroup of terms) {
+        if (Array.isArray(termGroup)) {
+          const tags = termGroup.filter(term => 
+            term.taxonomy === 'post_tag' || 
+            term.taxonomy === 'portfolio_tag'
+          );
+          if (tags.length > 0) return tags;
+        }
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const getFeaturedImage = (item: WordPressPortfolio) => {
+    try {
+      const media = item._embedded?.['wp:featuredmedia']?.[0];
+      if (!media) return null;
+      
+      const sizes = media.media_details?.sizes;
+      if (sizes?.large?.source_url) return sizes.large.source_url;
+      if (sizes?.medium?.source_url) return sizes.medium.source_url;
+      
+      return media.source_url;
+    } catch {
+      return null;
     }
   };
 
@@ -207,52 +243,15 @@ export default function Portfolio() {
     }
   };
 
-  const getTags = (item: WordPressPortfolio) => {
+  const formatDate = (dateString: string) => {
     try {
-      if (!item._embedded?.['wp:term']) return [];
-      // Suche nach Tags (normalerweise Index 1) oder Categories (Index 0)
-      const terms = item._embedded['wp:term'];
-      for (const termGroup of terms) {
-        if (Array.isArray(termGroup)) {
-          const tags = termGroup.filter(term => term.taxonomy === 'post_tag' || term.taxonomy === 'portfolio_tag');
-          if (tags.length > 0) return tags;
-        }
-      }
-      return [];
+      return new Date(dateString).toLocaleDateString('de-DE', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
     } catch {
-      return [];
-    }
-  };
-
-  const getCategories = (item: WordPressPortfolio) => {
-    try {
-      if (!item._embedded?.['wp:term']) return [];
-      const terms = item._embedded['wp:term'];
-      for (const termGroup of terms) {
-        if (Array.isArray(termGroup)) {
-          const categories = termGroup.filter(term => term.taxonomy === 'category' || term.taxonomy === 'portfolio_category');
-          if (categories.length > 0) return categories;
-        }
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  };
-
-  const getFeaturedImage = (item: WordPressPortfolio) => {
-    try {
-      const media = item._embedded?.['wp:featuredmedia']?.[0];
-      if (!media) return null;
-      
-      // Versuche verschiedene Bildgrößen
-      const sizes = media.media_details?.sizes;
-      if (sizes?.large?.source_url) return sizes.large.source_url;
-      if (sizes?.medium?.source_url) return sizes.medium.source_url;
-      
-      return media.source_url;
-    } catch {
-      return null;
+      return 'Datum unbekannt';
     }
   };
 
@@ -270,7 +269,9 @@ export default function Portfolio() {
       'analysis': 'bg-cockpit-lime/10 text-cockpit-teal border-cockpit-lime/20',
       'analyse': 'bg-cockpit-lime/10 text-cockpit-teal border-cockpit-lime/20',
       'agile': 'bg-cockpit-orange/10 text-orange-600 border-cockpit-orange/20',
-      'projekt': 'bg-gray-100 text-gray-600 border-gray-200'
+      'projekt': 'bg-gray-100 text-gray-600 border-gray-200',
+      'berater': 'bg-cockpit-violet/10 text-cockpit-violet border-cockpit-violet/20',
+      'beratung': 'bg-cockpit-violet/10 text-cockpit-violet border-cockpit-violet/20'
     };
     
     for (const [key, value] of Object.entries(colors)) {
@@ -279,6 +280,20 @@ export default function Portfolio() {
     
     return 'bg-gray-100 text-gray-600 border-gray-200';
   };
+
+  // Filter Portfolio-Items basierend auf ausgewählter Kategorie
+  const filteredItems = selectedCategory === 'all' 
+    ? portfolioItems 
+    : portfolioItems.filter(item => 
+        getCategories(item).some(cat => cat.name === selectedCategory)
+      );
+
+  // Prüfe ob Berater-Kategorie vorhanden ist
+  const hasBeraterCategory = availableCategories.some(cat => 
+    cat.toLowerCase().includes('berater') || 
+    cat.toLowerCase().includes('beratung') || 
+    cat.toLowerCase().includes('consulting')
+  );
 
   // Loading State
   if (loading) {
@@ -393,9 +408,62 @@ export default function Portfolio() {
           </div>
         </div>
 
+        {/* Category Filter */}
+        {availableCategories.length > 1 && (
+          <div className="mb-12">
+            <div className="text-center mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-center space-x-2">
+                <Filter className="w-5 h-5" />
+                <span>Nach Kategorie filtern:</span>
+              </h3>
+              <div className="flex flex-wrap justify-center gap-2">
+                {availableCategories.map((category) => (
+                  <Button
+                    key={category}
+                    variant={selectedCategory === category ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategory(category)}
+                    className={selectedCategory === category 
+                      ? "bg-cockpit-turquoise text-white" 
+                      : "border-cockpit-turquoise text-cockpit-turquoise hover:bg-cockpit-turquoise hover:text-white"
+                    }
+                  >
+                    {category === 'all' ? 'Alle Projekte' : category}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Berater CTA */}
+        {hasBeraterCategory && (
+          <div className="mb-12">
+            <div className="bg-gradient-to-r from-cockpit-violet/5 to-cockpit-blue-light/5 rounded-2xl p-6 border border-cockpit-violet/10">
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  🎯 Speziell für Beratungsprojekte
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Entdecken Sie unsere umfangreiche Sammlung von Strategieberatungs- und Leadership-Projekten
+                </p>
+                <Button 
+                  asChild
+                  className="bg-cockpit-gradient hover:opacity-90 text-white"
+                >
+                  <Link href="/berater" className="inline-flex items-center space-x-2">
+                    <span>Berater-Portfolio ansehen</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Portfolio Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          {portfolioItems.map((item) => {
+          {filteredItems.map((item) => {
             const tags = getTags(item);
             const categories = getCategories(item);
             const featuredImage = getFeaturedImage(item);

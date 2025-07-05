@@ -32,6 +32,9 @@ export default function Navigation() {
             <Link href="#portfolio" className="text-gray-600 hover:text-cockpit-turquoise transition-colors font-medium">
               Portfolio
             </Link>
+            <Link href="/berater" className="text-gray-600 hover:text-cockpit-violet transition-colors font-medium">
+              Berater
+            </Link>
             <Link href="#blog" className="text-gray-600 hover:text-cockpit-blue-light transition-colors font-medium">
               Blog
             </Link>
