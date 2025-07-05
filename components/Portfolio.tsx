@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Calendar, Tag, ArrowRight } from 'lucide-react';
+import { ExternalLink, Calendar, Tag, ArrowRight, Briefcase, User, Clock } from 'lucide-react';
 
 interface WordPressPortfolio {
   id: number;
@@ -20,7 +20,7 @@ interface WordPressPortfolio {
   date: string;
   link: string;
   featured_media: number;
-  type: string;
+  type?: string;
   acf?: {
     project_url?: string;
     client_name?: string;
@@ -41,35 +41,156 @@ interface WordPressPortfolio {
   };
 }
 
+// Fallback Portfolio Data für Demo-Zwecke
+const fallbackPortfolio: WordPressPortfolio[] = [
+  {
+    id: 1,
+    title: { rendered: 'KI-gestützte Strategieberatung für Fintech-Startup' },
+    excerpt: { rendered: 'Entwicklung einer umfassenden Digitalisierungsstrategie mit KI-Integration für ein aufstrebendes Fintech-Unternehmen.' },
+    content: { rendered: '' },
+    date: '2024-01-15',
+    link: '#',
+    featured_media: 0,
+    type: 'portfolio',
+    acf: {
+      client_name: 'FinanceFlow GmbH',
+      project_type: 'Strategieberatung',
+      technologies: 'Machine Learning, Python, React, AWS',
+      completion_date: '2024-01-15'
+    }
+  },
+  {
+    id: 2,
+    title: { rendered: 'Leadership Development Programm für Tech-Konzern' },
+    excerpt: { rendered: 'Maßgeschneidertes Führungskräfte-Entwicklungsprogramm mit Fokus auf digitale Transformation und agile Methoden.' },
+    content: { rendered: '' },
+    date: '2023-12-10',
+    link: '#',
+    featured_media: 0,
+    type: 'portfolio',
+    acf: {
+      client_name: 'TechGlobal AG',
+      project_type: 'Leadership Development',
+      technologies: 'Coaching, Workshops, Digital Tools',
+      completion_date: '2023-12-10'
+    }
+  },
+  {
+    id: 3,
+    title: { rendered: 'Prozessoptimierung durch KI-Automatisierung' },
+    excerpt: { rendered: 'Implementierung intelligenter Automatisierungslösungen zur Steigerung der Effizienz in der Produktion.' },
+    content: { rendered: '' },
+    date: '2023-11-20',
+    link: '#',
+    featured_media: 0,
+    type: 'portfolio',
+    acf: {
+      client_name: 'ManufacturePro',
+      project_type: 'Process Optimization',
+      technologies: 'RPA, AI/ML, IoT, Dashboard',
+      completion_date: '2023-11-20'
+    }
+  },
+  {
+    id: 4,
+    title: { rendered: 'Digital Transformation Roadmap für Mittelstand' },
+    excerpt: { rendered: 'Entwicklung einer 3-Jahres-Roadmap für die digitale Transformation eines traditionellen Mittelstandsunternehmens.' },
+    content: { rendered: '' },
+    date: '2023-10-05',
+    link: '#',
+    featured_media: 0,
+    type: 'portfolio',
+    acf: {
+      client_name: 'Tradition & Innovation GmbH',
+      project_type: 'Digital Transformation',
+      technologies: 'Cloud Migration, ERP, CRM, Analytics',
+      completion_date: '2023-10-05'
+    }
+  },
+  {
+    id: 5,
+    title: { rendered: 'KI-basierte Marktanalyse für E-Commerce' },
+    excerpt: { rendered: 'Implementierung fortschrittlicher KI-Algorithmen zur Marktanalyse und Kundenverhalten-Vorhersage.' },
+    content: { rendered: '' },
+    date: '2023-09-15',
+    link: '#',
+    featured_media: 0,
+    type: 'portfolio',
+    acf: {
+      client_name: 'ShopSmart Online',
+      project_type: 'Market Analysis',
+      technologies: 'TensorFlow, BigQuery, Tableau, API',
+      completion_date: '2023-09-15'
+    }
+  },
+  {
+    id: 6,
+    title: { rendered: 'Agile Transformation für Softwareunternehmen' },
+    excerpt: { rendered: 'Begleitung bei der Umstellung auf agile Arbeitsweisen und Implementierung von Scrum-Prozessen.' },
+    content: { rendered: '' },
+    date: '2023-08-30',
+    link: '#',
+    featured_media: 0,
+    type: 'portfolio',
+    acf: {
+      client_name: 'CodeCraft Solutions',
+      project_type: 'Agile Transformation',
+      technologies: 'Scrum, Kanban, Jira, Confluence',
+      completion_date: '2023-08-30'
+    }
+  }
+];
+
 export default function Portfolio() {
   const [portfolioItems, setPortfolioItems] = useState<WordPressPortfolio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   useEffect(() => {
     const fetchPortfolio = async () => {
       try {
-        // Verwende den korrekten Array-Parameter für Portfolio-Posts
-        const response = await fetch(
-          'https://cockpit4me.de/wp-json/wp/v2/posts?type[]=post&type[]=portfolio&_embed&per_page=6&orderby=date&order=desc'
-        );
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch portfolio items');
+        // Versuche verschiedene WordPress-Endpoints
+        const endpoints = [
+          'https://cockpit4me.de/wp-json/wp/v2/portfolio?_embed&per_page=6&orderby=date&order=desc',
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=6&categories=portfolio&orderby=date&order=desc',
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=6&tags=portfolio&orderby=date&order=desc'
+        ];
+
+        let portfolioData: WordPressPortfolio[] = [];
+        let success = false;
+
+        for (const endpoint of endpoints) {
+          try {
+            const response = await fetch(endpoint);
+            if (response.ok) {
+              const data = await response.json();
+              if (Array.isArray(data) && data.length > 0) {
+                portfolioData = data;
+                success = true;
+                break;
+              }
+            }
+          } catch (endpointError) {
+            console.log(`Endpoint ${endpoint} failed:`, endpointError);
+            continue;
+          }
         }
-        
-        const data = await response.json();
-        // Filtere nur Portfolio-Items (falls beide Types zurückkommen)
-        const portfolioData = data.filter((item: WordPressPortfolio) => 
-          item.type === 'portfolio' || 
-          // Fallback: wenn type nicht verfügbar ist, prüfe andere Indikatoren
-          item.acf?.project_url || 
-          item.acf?.client_name
-        );
-        
-        setPortfolioItems(portfolioData);
+
+        if (success && portfolioData.length > 0) {
+          setPortfolioItems(portfolioData);
+          setUsingFallback(false);
+        } else {
+          // Verwende Fallback-Daten wenn WordPress nicht erreichbar ist
+          setPortfolioItems(fallbackPortfolio);
+          setUsingFallback(true);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
+        console.error('Portfolio fetch error:', err);
+        // Verwende Fallback-Daten bei Fehlern
+        setPortfolioItems(fallbackPortfolio);
+        setUsingFallback(true);
+        setError('WordPress nicht erreichbar - Demo-Daten werden angezeigt');
       } finally {
         setLoading(false);
       }
@@ -87,6 +208,7 @@ export default function Portfolio() {
   };
 
   const stripHtml = (html: string) => {
+    if (typeof window === 'undefined') return html;
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || '';
@@ -99,6 +221,18 @@ export default function Portfolio() {
 
   const getFeaturedImage = (item: WordPressPortfolio) => {
     return item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
+  };
+
+  const getProjectTypeColor = (type: string) => {
+    const colors: Record<string, string> = {
+      'Strategieberatung': 'bg-cockpit-violet/10 text-cockpit-violet border-cockpit-violet/20',
+      'Leadership Development': 'bg-cockpit-blue-light/10 text-cockpit-blue-light border-cockpit-blue-light/20',
+      'Process Optimization': 'bg-cockpit-turquoise/10 text-cockpit-turquoise border-cockpit-turquoise/20',
+      'Digital Transformation': 'bg-cockpit-pink/10 text-cockpit-pink border-cockpit-pink/20',
+      'Market Analysis': 'bg-cockpit-lime/10 text-cockpit-teal border-cockpit-lime/20',
+      'Agile Transformation': 'bg-cockpit-orange/10 text-orange-600 border-cockpit-orange/20'
+    };
+    return colors[type] || 'bg-gray-100 text-gray-600 border-gray-200';
   };
 
   if (loading) {
@@ -135,32 +269,6 @@ export default function Portfolio() {
     );
   }
 
-  if (error) {
-    return (
-      <section className="py-20 sm:py-32 bg-gray-50/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Portfolio
-          </h2>
-          <p className="text-red-600 mb-8">
-            Fehler beim Laden des Portfolios: {error}
-          </p>
-          <Button 
-            onClick={() => window.location.reload()} 
-            className="bg-cockpit-gradient hover:opacity-90 text-white"
-          >
-            Erneut versuchen
-          </Button>
-        </div>
-      </section>
-    );
-  }
-
-  // Verstecke Sektion wenn keine Portfolio-Items vorhanden
-  if (portfolioItems.length === 0) {
-    return null;
-  }
-
   return (
     <section id="portfolio" className="py-20 sm:py-32 bg-gray-50/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -176,6 +284,13 @@ export default function Portfolio() {
             Entdecken Sie unsere erfolgreichen Projekte und Lösungen für 
             Unternehmen verschiedener Branchen.
           </p>
+          {usingFallback && (
+            <div className="mt-4">
+              <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50">
+                Demo-Modus: Beispiel-Projekte werden angezeigt
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Portfolio Grid */}
@@ -183,6 +298,7 @@ export default function Portfolio() {
           {portfolioItems.map((item) => {
             const tags = getTags(item);
             const featuredImage = getFeaturedImage(item);
+            const projectType = item.acf?.project_type || 'Projekt';
 
             return (
               <Card key={item.id} className="group hover:shadow-xl transition-all duration-300 border-0 bg-white hover:bg-gray-50/50 overflow-hidden">
@@ -196,21 +312,22 @@ export default function Portfolio() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cockpit-turquoise/20 to-cockpit-lime/20">
-                      <div className="text-6xl font-bold text-cockpit-turquoise/30">
-                        {stripHtml(item.title.rendered).charAt(0)}
+                      <div className="text-center">
+                        <Briefcase className="w-16 h-16 text-cockpit-turquoise/60 mx-auto mb-4" />
+                        <div className="text-2xl font-bold text-cockpit-turquoise/40">
+                          {stripHtml(item.title.rendered).charAt(0)}
+                        </div>
                       </div>
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
                   
                   {/* Project Type Badge */}
-                  {item.acf?.project_type && (
-                    <div className="absolute top-4 left-4">
-                      <Badge className="bg-cockpit-turquoise text-white">
-                        {item.acf.project_type}
-                      </Badge>
-                    </div>
-                  )}
+                  <div className="absolute top-4 left-4">
+                    <Badge className={`${getProjectTypeColor(projectType)} border`}>
+                      {projectType}
+                    </Badge>
+                  </div>
                 </div>
 
                 <CardHeader className="pb-3">
@@ -221,7 +338,10 @@ export default function Portfolio() {
                   {/* Client & Date */}
                   <div className="flex items-center justify-between text-sm text-gray-500 mt-2">
                     {item.acf?.client_name && (
-                      <span className="font-medium">{item.acf.client_name}</span>
+                      <div className="flex items-center space-x-1">
+                        <User className="w-4 h-4" />
+                        <span className="font-medium">{item.acf.client_name}</span>
+                      </div>
                     )}
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-4 h-4" />
@@ -243,12 +363,28 @@ export default function Portfolio() {
                           <Badge 
                             key={index} 
                             variant="outline" 
-                            className="text-xs border-cockpit-lime text-cockpit-teal"
+                            className="text-xs border-cockpit-lime/30 text-cockpit-teal bg-cockpit-lime/5"
                           >
                             {tech.trim()}
                           </Badge>
                         ))}
+                        {item.acf.technologies.split(',').length > 3 && (
+                          <Badge 
+                            variant="outline" 
+                            className="text-xs border-gray-300 text-gray-500 bg-gray-50"
+                          >
+                            +{item.acf.technologies.split(',').length - 3}
+                          </Badge>
+                        )}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Completion Date */}
+                  {item.acf?.completion_date && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500 mb-4">
+                      <Clock className="w-4 h-4" />
+                      <span>Abgeschlossen: {formatDate(item.acf.completion_date)}</span>
                     </div>
                   )}
 
@@ -275,10 +411,11 @@ export default function Portfolio() {
                       className="p-0 h-auto text-cockpit-turquoise hover:text-cockpit-teal font-semibold group/btn"
                     >
                       <a 
-                        href={item.link} 
-                        target="_blank" 
+                        href={usingFallback ? '#' : item.link} 
+                        target={usingFallback ? '_self' : '_blank'}
                         rel="noopener noreferrer"
                         className="flex items-center space-x-2"
+                        onClick={usingFallback ? (e) => e.preventDefault() : undefined}
                       >
                         <span>Details</span>
                         <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
@@ -286,7 +423,7 @@ export default function Portfolio() {
                     </Button>
 
                     {/* Project URL */}
-                    {item.acf?.project_url && (
+                    {item.acf?.project_url && !usingFallback && (
                       <Button 
                         asChild
                         size="sm"

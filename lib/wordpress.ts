@@ -152,7 +152,7 @@ export const getExcerpt = (content: string, maxLength: number = 150): string => 
   return text.substring(0, maxLength).trim() + '...';
 };
 
-// API Functions
+// API Functions mit verbesserter Fehlerbehandlung
 export const fetchPosts = async (params: {
   per_page?: number;
   page?: number;
@@ -170,13 +170,26 @@ export const fetchPosts = async (params: {
     ...params
   });
 
-  const response = await fetch(`${WORDPRESS_API_URL}/posts?${searchParams}`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch posts: ${response.statusText}`);
+  try {
+    const response = await fetch(`${WORDPRESS_API_URL}/posts?${searchParams}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      // Timeout nach 10 Sekunden
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    throw error;
   }
-  
-  return response.json();
 };
 
 export const fetchPortfolio = async (params: {
@@ -186,8 +199,6 @@ export const fetchPortfolio = async (params: {
   order?: 'asc' | 'desc';
 } = {}): Promise<WordPressPortfolio[]> => {
   const searchParams = new URLSearchParams({
-    'type[]': 'post',
-    'type[]': 'portfolio',
     _embed: 'true',
     per_page: '10',
     orderby: 'date',
@@ -195,20 +206,41 @@ export const fetchPortfolio = async (params: {
     ...params
   });
 
-  const response = await fetch(`${WORDPRESS_API_URL}/posts?${searchParams}`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch portfolio: ${response.statusText}`);
+  // Versuche verschiedene Endpoints
+  const endpoints = [
+    `${WORDPRESS_API_URL}/portfolio?${searchParams}`,
+    `${WORDPRESS_API_URL}/posts?${searchParams}&categories=portfolio`,
+    `${WORDPRESS_API_URL}/posts?${searchParams}&tags=portfolio`
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000)
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          // Filtere nur Portfolio-Items
+          return data.filter((item: WordPressPortfolio) => 
+            item.type === 'portfolio' || 
+            item.acf?.project_url || 
+            item.acf?.client_name
+          );
+        }
+      }
+    } catch (error) {
+      console.log(`Portfolio endpoint ${endpoint} failed:`, error);
+      continue;
+    }
   }
-  
-  const data = await response.json();
-  
-  // Filtere nur Portfolio-Items
-  return data.filter((item: WordPressPortfolio) => 
-    item.type === 'portfolio' || 
-    item.acf?.project_url || 
-    item.acf?.client_name
-  );
+
+  throw new Error('No portfolio data found');
 };
 
 export const fetchPages = async (params: {
@@ -226,13 +258,25 @@ export const fetchPages = async (params: {
     ...params
   });
 
-  const response = await fetch(`${WORDPRESS_API_URL}/pages?${searchParams}`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch pages: ${response.statusText}`);
+  try {
+    const response = await fetch(`${WORDPRESS_API_URL}/pages?${searchParams}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching pages:', error);
+    throw error;
   }
-  
-  return response.json();
 };
 
 export const fetchCustomPosts = async (
@@ -245,7 +289,6 @@ export const fetchCustomPosts = async (
   } = {}
 ): Promise<WordPressCustomPost[]> => {
   const searchParams = new URLSearchParams({
-    type: postType,
     _embed: 'true',
     per_page: '10',
     orderby: 'date',
@@ -253,36 +296,70 @@ export const fetchCustomPosts = async (
     ...params
   });
 
-  const response = await fetch(`${WORDPRESS_API_URL}/posts?${searchParams}`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${postType}: ${response.statusText}`);
+  try {
+    const response = await fetch(`${WORDPRESS_API_URL}/${postType}?${searchParams}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error(`Error fetching ${postType}:`, error);
+    throw error;
   }
-  
-  return response.json();
 };
 
 export const fetchPostById = async (id: number): Promise<WordPressPost> => {
-  const response = await fetch(`${WORDPRESS_API_URL}/posts/${id}?_embed=true`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch post ${id}: ${response.statusText}`);
+  try {
+    const response = await fetch(`${WORDPRESS_API_URL}/posts/${id}?_embed=true`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching post ${id}:`, error);
+    throw error;
   }
-  
-  return response.json();
 };
 
 export const fetchPageById = async (id: number): Promise<WordPressPage> => {
-  const response = await fetch(`${WORDPRESS_API_URL}/pages/${id}?_embed=true`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch page ${id}: ${response.statusText}`);
+  try {
+    const response = await fetch(`${WORDPRESS_API_URL}/pages/${id}?_embed=true`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching page ${id}:`, error);
+    throw error;
   }
-  
-  return response.json();
 };
 
-// Search Function
+// Search Function mit verbesserter Fehlerbehandlung
 export const searchContent = async (
   query: string,
   postTypes: string[] = ['posts', 'portfolio']
@@ -306,20 +383,32 @@ export const searchContent = async (
   };
 };
 
-// Categories and Tags
+// Categories and Tags mit Fehlerbehandlung
 export const fetchCategories = async (): Promise<Array<{
   id: number;
   name: string;
   slug: string;
   count: number;
 }>> => {
-  const response = await fetch(`${WORDPRESS_API_URL}/categories?per_page=100`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch categories: ${response.statusText}`);
+  try {
+    const response = await fetch(`${WORDPRESS_API_URL}/categories?per_page=100`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    return [];
   }
-  
-  return response.json();
 };
 
 export const fetchTags = async (): Promise<Array<{
@@ -328,11 +417,42 @@ export const fetchTags = async (): Promise<Array<{
   slug: string;
   count: number;
 }>> => {
-  const response = await fetch(`${WORDPRESS_API_URL}/tags?per_page=100`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch tags: ${response.statusText}`);
+  try {
+    const response = await fetch(`${WORDPRESS_API_URL}/tags?per_page=100`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+    return [];
   }
-  
-  return response.json();
+};
+
+// Hilfsfunktion für robuste API-Aufrufe
+export const fetchWithFallback = async <T>(
+  primaryFetch: () => Promise<T>,
+  fallbackData: T,
+  errorMessage?: string
+): Promise<{ data: T; isUsingFallback: boolean; error?: string }> => {
+  try {
+    const data = await primaryFetch();
+    return { data, isUsingFallback: false };
+  } catch (error) {
+    console.error(errorMessage || 'API fetch failed:', error);
+    return { 
+      data: fallbackData, 
+      isUsingFallback: true, 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
 };
