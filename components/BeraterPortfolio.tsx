@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Calendar, Tag, ArrowRight, User, Mail, Phone, Linkedin, MapPin, AlertCircle, Users, Award, Briefcase, GraduationCap } from 'lucide-react';
+import { ExternalLink, Calendar, ArrowRight, User, Mail, Phone, Linkedin, MapPin, AlertCircle, Users, Award, Briefcase, GraduationCap } from 'lucide-react';
 
 interface WordPressBerater {
   id: number;
@@ -61,38 +61,26 @@ export default function BeraterPortfolio() {
   const [beraterTeam, setBeraterTeam] = useState<WordPressBerater[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
-  const [availableSpecialties, setAvailableSpecialties] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchBeraterTeam = async () => {
       setLoading(true);
       
       try {
-        // Verschiedene Endpoints für Berater-Team versuchen
+        // Suche spezifisch nach Category "berater"
         const endpoints = [
-          // Posts/Pages mit "berater" Tag
+          // Posts mit Berater-Kategorie
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&categories=berater',
+          
+          // Fallback: Posts mit Berater-Tag
           'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&tags=berater',
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&tags=team',
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&tags=consultant',
           
           // Custom Post Type Team/Berater
           'https://cockpit4me.de/wp-json/wp/v2/team?_embed&per_page=50',
           'https://cockpit4me.de/wp-json/wp/v2/berater?_embed&per_page=50',
-          'https://cockpit4me.de/wp-json/wp/v2/consultants?_embed&per_page=50',
           
-          // Posts mit Berater-Kategorie
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&categories=berater',
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&categories=team',
-          
-          // Suche nach Berater-relevanten Inhalten
+          // Suche nach "berater" in Posts
           'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=berater',
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=consultant',
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=team',
-          
-          // Pages durchsuchen
-          'https://cockpit4me.de/wp-json/wp/v2/pages?_embed&per_page=50&search=berater',
-          'https://cockpit4me.de/wp-json/wp/v2/pages?_embed&per_page=50&search=team'
         ];
 
         let beraterData: WordPressBerater[] = [];
@@ -121,44 +109,37 @@ export default function BeraterPortfolio() {
               const data = await response.json();
               
               if (Array.isArray(data) && data.length > 0) {
-                // Filtere Berater-relevante Posts
+                // Filtere nur echte Berater-Personen
                 const filteredData = data.filter((item: WordPressBerater) => {
-                  const title = item.title.rendered.toLowerCase();
-                  const excerpt = item.excerpt.rendered.toLowerCase();
-                  const content = item.content.rendered.toLowerCase();
-                  
-                  // Prüfe auf Berater/Team-relevante Keywords
-                  const teamKeywords = [
-                    'berater', 'consultant', 'team', 'mitarbeiter',
-                    'experte', 'expert', 'spezialist', 'specialist',
-                    'senior', 'junior', 'partner', 'director',
-                    'manager', 'lead', 'principal'
-                  ];
-                  
-                  const hasKeyword = teamKeywords.some(keyword => 
-                    title.includes(keyword) || 
-                    excerpt.includes(keyword) || 
-                    content.includes(keyword)
+                  // Prüfe Kategorien
+                  const categories = getCategories(item);
+                  const hasBeraterCategory = categories.some(cat => 
+                    cat.slug === 'berater' || cat.name.toLowerCase() === 'berater'
                   );
                   
                   // Prüfe Tags
                   const tags = getTags(item);
                   const hasBeraterTag = tags.some(tag => 
-                    ['berater', 'team', 'consultant', 'experte', 'mitarbeiter'].includes(tag.slug)
+                    tag.slug === 'berater' || tag.name.toLowerCase() === 'berater'
                   );
                   
-                  // Prüfe Kategorien
-                  const categories = getCategories(item);
-                  const hasBeraterCategory = categories.some(cat => 
-                    ['berater', 'team', 'consultant', 'mitarbeiter'].includes(cat.slug)
+                  // Prüfe ACF-Felder für Berater-Daten (deutet auf Person hin)
+                  const hasPersonACF = item.acf?.berater_position || 
+                                     item.acf?.berater_email || 
+                                     item.acf?.berater_linkedin;
+                  
+                  // Prüfe Titel/Content auf Personen-Keywords
+                  const title = item.title.rendered.toLowerCase();
+                  const content = item.content.rendered.toLowerCase();
+                  const personKeywords = [
+                    'senior', 'junior', 'partner', 'director', 'manager',
+                    'consultant', 'berater', 'experte', 'specialist'
+                  ];
+                  const hasPersonKeyword = personKeywords.some(keyword => 
+                    title.includes(keyword) || content.includes(keyword)
                   );
                   
-                  // Prüfe ACF-Felder für Berater-Daten
-                  const hasTeamACF = item.acf?.berater_position || 
-                                   item.acf?.berater_email || 
-                                   item.acf?.berater_specialties;
-                  
-                  return hasKeyword || hasBeraterTag || hasBeraterCategory || hasTeamACF;
+                  return (hasBeraterCategory || hasBeraterTag) && (hasPersonACF || hasPersonKeyword);
                 });
 
                 if (filteredData.length > 0) {
@@ -177,28 +158,9 @@ export default function BeraterPortfolio() {
 
         if (success && beraterData.length > 0) {
           setBeraterTeam(beraterData);
-          
-          // Extrahiere verfügbare Spezialisierungen
-          const specialties = new Set<string>();
-          beraterData.forEach(berater => {
-            if (berater.acf?.berater_specialties) {
-              berater.acf.berater_specialties.split(',').forEach(specialty => {
-                specialties.add(specialty.trim());
-              });
-            }
-            // Fallback: Kategorien als Spezialisierungen
-            const categories = getCategories(berater);
-            categories.forEach(cat => {
-              if (!['berater', 'team', 'uncategorized'].includes(cat.slug)) {
-                specialties.add(cat.name);
-              }
-            });
-          });
-          setAvailableSpecialties(['all', ...Array.from(specialties)]);
-          
           setError(null);
         } else {
-          throw new Error('Keine Berater-Team-Daten gefunden');
+          throw new Error('Keine Berater-Team-Daten mit Kategorie "berater" gefunden');
         }
 
       } catch (err) {
@@ -310,15 +272,6 @@ export default function BeraterPortfolio() {
     return 'bg-gray-100 text-gray-600 border-gray-200';
   };
 
-  // Filter Berater basierend auf ausgewählter Spezialisierung
-  const filteredBerater = selectedSpecialty === 'all' 
-    ? beraterTeam 
-    : beraterTeam.filter(berater => {
-        const specialties = berater.acf?.berater_specialties?.split(',').map(s => s.trim()) || [];
-        const categories = getCategories(berater).map(cat => cat.name);
-        return [...specialties, ...categories].includes(selectedSpecialty);
-      });
-
   // Loading State
   if (loading) {
     return (
@@ -398,7 +351,7 @@ export default function BeraterPortfolio() {
                   <h3 className="text-xl font-semibold text-amber-800">Team-Seite wird aufgebaut</h3>
                 </div>
                 <p className="text-amber-700 mb-6 leading-relaxed">
-                  Unsere Berater-Profile werden gerade in WordPress eingerichtet. 
+                  Unsere Berater-Profile mit der Kategorie "berater" werden gerade in WordPress eingerichtet. 
                   Besuchen Sie unsere Hauptwebsite für Informationen über unser Team.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -440,7 +393,7 @@ export default function BeraterPortfolio() {
     );
   }
 
-  // Success State
+  // Success State - Zeige alle Berater ohne Filter
   return (
     <section className="py-20 sm:py-32 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -478,44 +431,19 @@ export default function BeraterPortfolio() {
               <div className="text-gray-600">Experten</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-cockpit-blue-light mb-2">{availableSpecialties.length - 1}+</div>
-              <div className="text-gray-600">Spezialisierungen</div>
+              <div className="text-3xl font-bold text-cockpit-blue-light mb-2">15+</div>
+              <div className="text-gray-600">Jahre Erfahrung</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-cockpit-turquoise mb-2">15+</div>
-              <div className="text-gray-600">Jahre Erfahrung</div>
+              <div className="text-3xl font-bold text-cockpit-turquoise mb-2">100+</div>
+              <div className="text-gray-600">Erfolgreiche Projekte</div>
             </div>
           </div>
         </div>
 
-        {/* Specialty Filter */}
-        {availableSpecialties.length > 1 && (
-          <div className="mb-12">
-            <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Nach Spezialisierung filtern:</h3>
-              <div className="flex flex-wrap justify-center gap-2">
-                {availableSpecialties.map((specialty) => (
-                  <Button
-                    key={specialty}
-                    variant={selectedSpecialty === specialty ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedSpecialty(specialty)}
-                    className={selectedSpecialty === specialty 
-                      ? "bg-cockpit-violet text-white" 
-                      : "border-cockpit-violet text-cockpit-violet hover:bg-cockpit-violet hover:text-white"
-                    }
-                  >
-                    {specialty === 'all' ? 'Alle Berater' : specialty}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Berater Grid */}
+        {/* Berater Grid - OHNE Filter */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          {filteredBerater.map((berater) => {
+          {beraterTeam.map((berater) => {
             const tags = getTags(berater);
             const categories = getCategories(berater);
             const featuredImage = getFeaturedImage(berater);
