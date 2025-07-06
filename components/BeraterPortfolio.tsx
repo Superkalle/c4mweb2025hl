@@ -61,6 +61,7 @@ export default function BeraterPortfolio() {
   const [beraterTeam, setBeraterTeam] = useState<WordPressBerater[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   useEffect(() => {
     const fetchBeraterTeam = async () => {
@@ -84,6 +85,7 @@ export default function BeraterPortfolio() {
         ];
 
         let beraterData: WordPressBerater[] = [];
+        let fallbackData: WordPressBerater[] = [];
         let success = false;
 
         for (const endpoint of endpoints) {
@@ -109,6 +111,11 @@ export default function BeraterPortfolio() {
               const data = await response.json();
               
               if (Array.isArray(data) && data.length > 0) {
+                // Store all data as potential fallback
+                if (fallbackData.length === 0) {
+                  fallbackData = data.slice(0, 6); // Limit fallback to 6 items
+                }
+
                 // Filtere nur echte Berater-Personen
                 const filteredData = data.filter((item: WordPressBerater) => {
                   // Prüfe Kategorien
@@ -158,15 +165,23 @@ export default function BeraterPortfolio() {
 
         if (success && beraterData.length > 0) {
           setBeraterTeam(beraterData);
+          setUsingFallback(false);
+          setError(null);
+        } else if (fallbackData.length > 0) {
+          // Use fallback data if no perfect matches found
+          console.log(`⚠️ Verwende Fallback-Daten: ${fallbackData.length} Posts`);
+          setBeraterTeam(fallbackData);
+          setUsingFallback(true);
           setError(null);
         } else {
-          throw new Error('Keine Berater-Team-Daten mit Kategorie "berater" gefunden');
+          throw new Error('Keine Berater-Team-Daten verfügbar');
         }
 
       } catch (err) {
         console.error('❌ Berater-Team-Laden fehlgeschlagen:', err);
         setError(err instanceof Error ? err.message : 'Fehler beim Laden der Berater-Team-Daten');
         setBeraterTeam([]);
+        setUsingFallback(false);
       } finally {
         setLoading(false);
       }
@@ -418,17 +433,34 @@ export default function BeraterPortfolio() {
           
           {/* Connection Status */}
           <div className="flex items-center justify-center space-x-2 mb-8">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm text-green-600 font-medium">
-              Live-Daten von WordPress ({beraterTeam.length} Berater)
+            <div className={`w-2 h-2 rounded-full animate-pulse ${usingFallback ? 'bg-amber-500' : 'bg-green-500'}`}></div>
+            <span className={`text-sm font-medium ${usingFallback ? 'text-amber-600' : 'text-green-600'}`}>
+              {usingFallback 
+                ? `Allgemeine Inhalte von WordPress (${beraterTeam.length} Beiträge)`
+                : `Live-Daten von WordPress (${beraterTeam.length} Berater)`
+              }
             </span>
           </div>
+
+          {/* Fallback Notice */}
+          {usingFallback && (
+            <div className="max-w-2xl mx-auto mb-8">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-amber-700">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">
+                    Spezielle Berater-Profile werden noch eingerichtet. Hier sehen Sie verwandte Inhalte.
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto">
             <div className="text-center">
               <div className="text-3xl font-bold text-cockpit-violet mb-2">{beraterTeam.length}+</div>
-              <div className="text-gray-600">Experten</div>
+              <div className="text-gray-600">{usingFallback ? 'Beiträge' : 'Experten'}</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-cockpit-blue-light mb-2">15+</div>
@@ -447,7 +479,7 @@ export default function BeraterPortfolio() {
             const tags = getTags(berater);
             const categories = getCategories(berater);
             const featuredImage = getFeaturedImage(berater);
-            const position = berater.acf?.berater_position || 'Senior Berater';
+            const position = berater.acf?.berater_position || (usingFallback ? 'Beitrag' : 'Senior Berater');
             const specialties = berater.acf?.berater_specialties?.split(',').map(s => s.trim()) || [];
 
             return (
@@ -587,7 +619,7 @@ export default function BeraterPortfolio() {
                         rel="noopener noreferrer"
                         className="flex items-center space-x-2"
                       >
-                        <span>Profil ansehen</span>
+                        <span>{usingFallback ? 'Beitrag ansehen' : 'Profil ansehen'}</span>
                         <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                       </a>
                     </Button>
