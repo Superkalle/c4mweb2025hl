@@ -68,20 +68,63 @@ export default function BeraterPortfolio() {
       setLoading(true);
       
       try {
-        // Suche spezifisch nach Category "berater"
-        const endpoints = [
-          // Posts mit Berater-Kategorie
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&categories=berater',
+        // Erst alle Kategorien abrufen um die richtige ID zu finden
+        console.log('🔍 Suche nach Berater-Kategorie...');
+        
+        let beraterCategoryId: number | null = null;
+        
+        try {
+          const categoriesResponse = await fetch('https://cockpit4me.de/wp-json/wp/v2/categories?per_page=100', {
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            mode: 'cors',
+            cache: 'no-cache'
+          });
           
-          // Fallback: Posts mit Berater-Tag
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&tags=berater',
+          if (categoriesResponse.ok) {
+            const categories = await categoriesResponse.json();
+            console.log('📋 Verfügbare Kategorien:', categories.map((cat: any) => ({ id: cat.id, name: cat.name, slug: cat.slug })));
+            
+            // Suche nach der spezifischen Berater-Kategorie
+            const beraterCategory = categories.find((cat: any) => 
+              cat.name.includes('Unsere Berater') || 
+              cat.name.includes('Berater für Führung') ||
+              cat.slug === 'berater' ||
+              cat.slug.includes('berater')
+            );
+            
+            if (beraterCategory) {
+              beraterCategoryId = beraterCategory.id;
+              console.log(`✅ Berater-Kategorie gefunden: "${beraterCategory.name}" (ID: ${beraterCategory.id})`);
+            } else {
+              console.log('❌ Keine passende Berater-Kategorie gefunden');
+            }
+          }
+        } catch (catError) {
+          console.log('⚠️ Kategorien-Abruf fehlgeschlagen:', catError);
+        }
+
+        // Verschiedene Endpoints für Berater-Team versuchen
+        const endpoints = [
+          // Wenn Kategorie-ID gefunden, verwende diese
+          ...(beraterCategoryId ? [`https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&categories=${beraterCategoryId}`] : []),
+          
+          // Fallback: Suche nach verschiedenen Berater-Begriffen
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=berater',
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=führung',
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=transformation',
           
           // Custom Post Type Team/Berater
           'https://cockpit4me.de/wp-json/wp/v2/team?_embed&per_page=50',
           'https://cockpit4me.de/wp-json/wp/v2/berater?_embed&per_page=50',
           
-          // Suche nach "berater" in Posts
-          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&search=berater',
+          // Tags
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=50&tags=berater',
+          
+          // Alle Posts als letzter Fallback
+          'https://cockpit4me.de/wp-json/wp/v2/posts?_embed&per_page=20&orderby=date&order=desc'
         ];
 
         let beraterData: WordPressBerater[] = [];
@@ -90,7 +133,7 @@ export default function BeraterPortfolio() {
 
         for (const endpoint of endpoints) {
           try {
-            console.log(`Versuche Berater-Team von: ${endpoint}`);
+            console.log(`🔄 Versuche Endpoint: ${endpoint}`);
             
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -111,51 +154,85 @@ export default function BeraterPortfolio() {
               const data = await response.json();
               
               if (Array.isArray(data) && data.length > 0) {
+                console.log(`📦 ${data.length} Posts von ${endpoint} erhalten`);
+                
                 // Store all data as potential fallback
                 if (fallbackData.length === 0) {
                   fallbackData = data.slice(0, 6); // Limit fallback to 6 items
                 }
 
-                // Filtere nur echte Berater-Personen
+                // Filtere Berater-relevante Posts
                 const filteredData = data.filter((item: WordPressBerater) => {
-                  // Prüfe Kategorien
+                  // Prüfe Kategorien auf Berater-Bezug
                   const categories = getCategories(item);
                   const hasBeraterCategory = categories.some(cat => 
-                    cat.slug === 'berater' || cat.name.toLowerCase() === 'berater'
+                    cat.name.includes('Berater') || 
+                    cat.name.includes('berater') ||
+                    cat.name.includes('Führung') ||
+                    cat.name.includes('Transformation') ||
+                    cat.slug === 'berater' ||
+                    cat.slug.includes('berater')
                   );
                   
                   // Prüfe Tags
                   const tags = getTags(item);
                   const hasBeraterTag = tags.some(tag => 
-                    tag.slug === 'berater' || tag.name.toLowerCase() === 'berater'
+                    tag.name.includes('Berater') ||
+                    tag.name.includes('berater') ||
+                    tag.slug === 'berater' ||
+                    tag.slug.includes('berater')
                   );
                   
-                  // Prüfe ACF-Felder für Berater-Daten (deutet auf Person hin)
-                  const hasPersonACF = item.acf?.berater_position || 
-                                     item.acf?.berater_email || 
-                                     item.acf?.berater_linkedin;
-                  
-                  // Prüfe Titel/Content auf Personen-Keywords
+                  // Prüfe Titel und Content auf Berater-Bezug
                   const title = item.title.rendered.toLowerCase();
                   const content = item.content.rendered.toLowerCase();
-                  const personKeywords = [
-                    'senior', 'junior', 'partner', 'director', 'manager',
-                    'consultant', 'berater', 'experte', 'specialist'
+                  const excerpt = item.excerpt.rendered.toLowerCase();
+                  
+                  const beraterKeywords = [
+                    'berater', 'consultant', 'führung', 'leadership', 
+                    'transformation', 'senior', 'partner', 'director',
+                    'experte', 'spezialist'
                   ];
-                  const hasPersonKeyword = personKeywords.some(keyword => 
-                    title.includes(keyword) || content.includes(keyword)
+                  
+                  const hasKeywordMatch = beraterKeywords.some(keyword => 
+                    title.includes(keyword) || 
+                    content.includes(keyword) || 
+                    excerpt.includes(keyword)
                   );
                   
-                  return (hasBeraterCategory || hasBeraterTag) && (hasPersonACF || hasPersonKeyword);
+                  // Prüfe ACF-Felder für Berater-Daten
+                  const hasPersonACF = item.acf?.berater_position || 
+                                     item.acf?.berater_email || 
+                                     item.acf?.berater_linkedin ||
+                                     item.acf?.berater_specialties;
+                  
+                  const isRelevant = hasBeraterCategory || hasBeraterTag || hasKeywordMatch || hasPersonACF;
+                  
+                  if (isRelevant) {
+                    console.log(`✅ Berater-relevanter Post gefunden: "${item.title.rendered}"`);
+                    if (hasBeraterCategory) {
+                      console.log(`   - Kategorie: ${categories.map(c => c.name).join(', ')}`);
+                    }
+                    if (hasBeraterTag) {
+                      console.log(`   - Tags: ${tags.map(t => t.name).join(', ')}`);
+                    }
+                    if (hasPersonACF) {
+                      console.log(`   - ACF-Felder vorhanden`);
+                    }
+                  }
+                  
+                  return isRelevant;
                 });
 
                 if (filteredData.length > 0) {
                   beraterData = filteredData;
                   success = true;
-                  console.log(`✅ Berater-Team geladen: ${filteredData.length} Berater`);
+                  console.log(`✅ ${filteredData.length} Berater-Posts gefunden`);
                   break;
                 }
               }
+            } else {
+              console.log(`❌ HTTP ${response.status}: ${response.statusText}`);
             }
           } catch (endpointError) {
             console.log(`❌ Endpoint fehlgeschlagen:`, endpointError);
@@ -167,6 +244,7 @@ export default function BeraterPortfolio() {
           setBeraterTeam(beraterData);
           setUsingFallback(false);
           setError(null);
+          console.log(`🎉 Berater-Team erfolgreich geladen: ${beraterData.length} Personen`);
         } else if (fallbackData.length > 0) {
           // Use fallback data if no perfect matches found
           console.log(`⚠️ Verwende Fallback-Daten: ${fallbackData.length} Posts`);
@@ -366,7 +444,7 @@ export default function BeraterPortfolio() {
                   <h3 className="text-xl font-semibold text-amber-800">Team-Seite wird aufgebaut</h3>
                 </div>
                 <p className="text-amber-700 mb-6 leading-relaxed">
-                  Unsere Berater-Profile mit der Kategorie "berater" werden gerade in WordPress eingerichtet. 
+                  Unsere Berater-Profile mit der Kategorie "Unsere Berater für Führung & Transformation" werden gerade in WordPress eingerichtet. 
                   Besuchen Sie unsere Hauptwebsite für Informationen über unser Team.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
